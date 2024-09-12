@@ -1,0 +1,19 @@
+server:
+  port: 8083
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: employeeService
+          uri: http://localhost:8080
+          predicates:
+            - Path=/employee-service/**
+        - id: addressService
+          uri: http://localhost:8081
+          predicates:
+            - Path=/address-service/**
+      filters:
+        StripPrefix=1
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG

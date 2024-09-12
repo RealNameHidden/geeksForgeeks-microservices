@@ -13,5 +13,5 @@ public class Address {
     int id;
     String city;
     String state;
-    int employee_id;
+
 }

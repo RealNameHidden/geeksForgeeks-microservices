@@ -5,6 +5,7 @@ import com.msgeekforgeeks.address_service.model.Address;
 import com.msgeekforgeeks.address_service.repository.AddressRepo;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -13,6 +14,7 @@ import java.util.Optional;
 public class AddressService {
 
     @Autowired
+    @Qualifier("addressRepo")
     private AddressRepo addressRepo;
 
     @Autowired

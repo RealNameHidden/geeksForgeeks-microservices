@@ -1,16 +1,16 @@
 package com.msgeekforgeeks.employee_service.model;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
+@Data
 @Getter
 @Setter
-public class Employee {
+public class Address {
 
     private int id;
-    private String name;
-    private String email;
-    private String age;
-    private Address address;
+    private String city;
+    private String state;
 
 }
