@@ -8,9 +8,26 @@ services:
       MYSQL_DATABASE: gfgmicroservicesdemo
     ports:
       - "3306:3306"
+    healthcheck:
+      test: curl --fail http://mysql-docker-container:3306/ || exit 1
+      interval: 40s
+      timeout: 30s
+      retries: 3
 
   address-service:
     image: address-service-latest
+    depends_on:
+      - mysql-db
+      - employee-service
+    environment:
+      - MYSQL_HOST=mysql-db
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=password
+    ports:
+      - "8081:8081"
+
+  employee-service:
+    image: employee-service-latest
     depends_on:
       - mysql-db
     environment:
@@ -18,4 +35,4 @@ services:
       - MYSQL_USER=root
       - MYSQL_PASSWORD=password
     ports:
-      - "8081:8081"
+      - "8080:8080"

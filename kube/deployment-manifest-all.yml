@@ -1,0 +1,196 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-stateful # Name of the StatefulSet for MySQL
+spec:
+  replicas: 1 # Number of MySQL replicas
+  selector:
+    matchLabels:
+      app: mysql # Selector to identify the MySQL pods
+  template:
+    metadata:
+      labels:
+        app: mysql # Label assigned to the MySQL pods
+    spec:
+      containers:
+        - name: mysql # Name of the MySQL container
+          image: mysql:8.0 # MySQL image version
+          env:
+            - name: MYSQL_ROOT_PASSWORD # Environment variable for the root password
+              value: "password"
+            - name: MYSQL_DATABASE # Environment variable for the initial database
+              value: "gfgmicroservicesdemo"
+          ports:
+            - containerPort: 3306 # Port exposed by the MySQL container
+              name: mysql # Name of the port for identification
+          volumeMounts:
+            - name: mysql-persistent-storage # Name of the persistent volume claim
+              mountPath: /var/lib/mysql # Path where the volume is mounted in the container
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-persistent-storage # Metadata for the volume claim template
+      spec:
+        accessModes: [ "ReadWriteOnce" ] # Access mode for the volume
+        resources:
+          requests:
+            storage: 10Gi # Storage size requested for the volume
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service # Name of the Service for MySQL
+spec:
+  selector:
+    app: mysql # Selector to match the MySQL pods
+  ports:
+    - protocol: TCP
+      port: 3306 # Service port
+      targetPort: 3306 # Port on the MySQL container
+  type: ClusterIP # Service type for internal cluster communication
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: employee # Name of the Deployment for the employee service
+spec:
+  replicas: 2 # Number of replicas for high availability
+  selector:
+    matchLabels:
+      app: employee # Selector to identify the employee pods
+  template:
+    metadata:
+      labels:
+        app: employee # Label assigned to the employee pods
+    spec:
+      containers:
+        - name: employee-service # Name of the employee container
+          image: employee-service:2.0.1 # Image version for the employee service
+          ports:
+            - containerPort: 8080 # Port exposed by the employee service container
+              name: http # Name of the port
+              protocol: TCP # Protocol used
+          env:
+            - name: SPRING_CLOUD_CONSUL_HOST # Environment variable for Consul host
+              value: "consul-server.default.svc.cluster.local" # Consul service address in the cluster
+            - name: SPRING_CLOUD_CONSUL_PORT # Environment variable for Consul port
+              value: "8500"
+          livenessProbe: # Probe to check container health
+            httpGet:
+              path: /actuator/health # Path for health check endpoint
+              port: 8080 # Port for health check
+            initialDelaySeconds: 5 # Delay before starting the first probe
+            periodSeconds: 10 # Interval between probes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: employee-service # Name of the Service for the employee service
+spec:
+  selector:
+    app: employee # Selector to match the employee pods
+  ports:
+    - protocol: TCP
+      port: 8080 # Service port
+      targetPort: 8080 # Port on the employee container
+      nodePort: 30080 # NodePort for external access
+  type: NodePort # Service type allowing external access via a specific node port
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: address # Name of the Deployment for the address service
+spec:
+  replicas: 2 # Number of replicas for high availability
+  selector:
+    matchLabels:
+      app: address # Selector to identify the address pods
+  template:
+    metadata:
+      labels:
+        app: address # Label assigned to the address pods
+    spec:
+      containers:
+        - name: address-service # Name of the address container
+          image: address-service:2.0 # Image version for the address service
+          ports:
+            - containerPort: 8081 # Port exposed by the address service container
+              name: http # Name of the port
+              protocol: TCP # Protocol used
+          env:
+            - name: SPRING_CLOUD_CONSUL_HOST # Environment variable for Consul host
+              value: "consul-server.default.svc.cluster.local" # Consul service address in the cluster
+            - name: SPRING_CLOUD_CONSUL_PORT # Environment variable for Consul port
+              value: "8500"
+          livenessProbe: # Probe to check container health
+            httpGet:
+              path: /actuator/health # Path for health check endpoint
+              port: 8081 # Port for health check
+            initialDelaySeconds: 5 # Delay before starting the first probe
+            periodSeconds: 10 # Interval between probes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: address-service # Name of the Service for the address service
+spec:
+  selector:
+    app: address # Selector to match the address pods
+  ports:
+    - protocol: TCP
+      port: 8081 # Service port
+      targetPort: 8081 # Port on the address container
+  type: ClusterIP # Service type for internal cluster communication
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consul-server # Name of the Consul Deployment
+  labels:
+    app: consul
+spec:
+  replicas: 1 # Number of Consul replicas
+  selector:
+    matchLabels:
+      app: consul
+  template:
+    metadata:
+      labels:
+        app: consul # Label assigned to the Consul pods
+    spec:
+      containers:
+        - name: consul # Name of the Consul container
+          image: hashicorp/consul:1.14.3 # Consul image version
+          ports:
+            - containerPort: 8500 # HTTP API port
+            - containerPort: 8300 # Server RPC port
+            - containerPort: 8600 # DNS port
+          args:
+            - "agent"
+            - "-server"
+            - "-ui"
+            - "-bootstrap-expect=1"
+            - "-client=0.0.0.0" # Ensures Consul is accessible from other services
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: consul-server # Name of the Service for Consul
+  labels:
+    app: consul # Label for identification
+spec:
+  ports:
+    - port: 8500 # Main HTTP API port for Consul
+      targetPort: 8500 # Target port on the Consul container
+      protocol: TCP # Protocol used
+      name: http # Name of the port
+    - port: 8300 # Server-to-server RPC communication port
+      targetPort: 8300 # Target port on the Consul container
+      protocol: TCP # Protocol used
+      name: server-rpc # Name of the port
+    - port: 8600 # DNS interface for service discovery
+      targetPort: 8600 # Target port on the Consul container
+      protocol: UDP # Protocol used for DNS
+      name: dns # Name of the port
+  selector:
+    app: consul # Selector to match the Consul pods
+  type: ClusterIP # Service type for internal cluster communication
